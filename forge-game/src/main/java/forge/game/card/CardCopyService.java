@@ -76,6 +76,7 @@ public class CardCopyService {
             }
             if (copyFrom.hasMergedCard()) {
                 out.setMergedCards(copyFrom.getMergedCards());
+                out.setCombined(copyFrom.isCombined());
             }
 
             out.setLeavesPlayCommands(copyFrom.getLeavesPlayCommands());
