@@ -755,6 +755,9 @@ public class CardFactory {
     }
 
     public static CardCloneStates getMutatedCloneStates(final Card card, final CardTraitBase sa) {
+        if (card.isCombined()) {
+            return getCombinedCloneStates(card, sa);
+        }
         final Card top = card.getTopMergedCard();
         final CardStateName state = top.getCurrentStateName();
         CardState ret;
@@ -782,6 +785,112 @@ public class CardFactory {
         }
 
         return result;
+    }
+
+    /**
+     * Combine: the permanent's power and toughness are the totals of its component cards,
+     * and it has all their names, mana costs, colors, types and text boxes.
+     * The top merged card only decides which card image is shown.
+     */
+    public static CardCloneStates getCombinedCloneStates(final Card card, final CardTraitBase sa) {
+        final Card top = card.getTopMergedCard();
+        final CardStateName state = top.getCurrentStateName();
+        final CardState ret;
+        if (top.isCloned()) {
+            ret = top.getState(state).copy(card, sa);
+        } else {
+            ret = top.getOriginalState(state).copy(card, sa);
+        }
+
+        final List<String> names = Lists.newArrayList();
+        if (ret.getName() != null && !ret.getName().isEmpty()) {
+            names.add(ret.getName());
+        }
+        ManaCost cost = ret.getManaCost();
+        ColorSet color = ret.getColor();
+        final CardType type = new CardType(ret.getType());
+        int power = ret.getBasePower();
+        int toughness = ret.getBaseToughness();
+        int loyalty = parseStat(ret.getBaseLoyalty());
+        int defense = parseStat(ret.getBaseDefense());
+        final StringBuilder oracle = new StringBuilder(ret.getOracleText() == null ? "" : ret.getOracleText());
+
+        boolean first = true;
+        for (final Card c : card.getMergedCards()) {
+            if (first) {
+                first = false;
+                continue;
+            }
+            final CardState other = c.getCurrentState();
+            ret.addAbilitiesFrom(other, false);
+            // abilities may look up SVars (e.g. X counts) on the host at resolution
+            for (final Entry<String, String> e : other.getSVars().entrySet()) {
+                if (!ret.hasSVar(e.getKey())) {
+                    ret.setSVar(e.getKey(), e.getValue());
+                }
+            }
+
+            if (other.getName() != null && !other.getName().isEmpty() && !names.contains(other.getName())) {
+                names.add(other.getName());
+            }
+            cost = combineCosts(cost, other.getManaCost());
+            color = ColorSet.combine(color, other.getColor());
+            type.addAll(other.getType());
+            power += other.getBasePower();
+            toughness += other.getBaseToughness();
+            loyalty += parseStat(other.getBaseLoyalty());
+            defense += parseStat(other.getBaseDefense());
+            if (other.getOracleText() != null && !other.getOracleText().isEmpty()) {
+                if (oracle.length() > 0) {
+                    oracle.append("\n\n");
+                }
+                oracle.append(other.getOracleText());
+            }
+        }
+
+        ret.setName(String.join(" + ", names));
+        ret.setManaCost(cost);
+        ret.setColor(color);
+        ret.setType(type);
+        ret.setBasePower(power);
+        ret.setBaseToughness(toughness);
+        ret.setBasePowerString(String.valueOf(power));
+        ret.setBaseToughnessString(String.valueOf(toughness));
+        if (loyalty > 0) {
+            ret.setBaseLoyalty(String.valueOf(loyalty));
+        }
+        if (defense > 0) {
+            ret.setBaseDefense(String.valueOf(defense));
+        }
+        ret.setOracleText(oracle.toString());
+
+        final CardCloneStates result = new CardCloneStates(top, sa);
+        result.put(state, ret);
+        if (state != CardStateName.Original) {
+            result.add(top.getState(CardStateName.Original).copy(card, sa));
+        }
+        return result;
+    }
+
+    private static ManaCost combineCosts(final ManaCost a, final ManaCost b) {
+        if (a == null || a.isNoCost()) {
+            return b;
+        }
+        if (b == null || b.isNoCost()) {
+            return a;
+        }
+        return ManaCost.combine(a, b);
+    }
+
+    private static int parseStat(final String s) {
+        if (s == null || s.isEmpty()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
 }

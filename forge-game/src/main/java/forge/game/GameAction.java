@@ -526,6 +526,7 @@ public class GameAction {
                 card.setZone(zoneTo);
             }
             copied.clearMergedCards();
+            copied.setCombined(false);
         } else {
             if (!suppress) {
                 storeChangesZoneAll(copied, zoneFrom, zoneTo, params);

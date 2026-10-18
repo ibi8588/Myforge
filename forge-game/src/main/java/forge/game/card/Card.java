@@ -275,6 +275,8 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
     private long prototypeTimestamp = -1;
     private long mutatedTimestamp = -1;
     private int timesMutated = 0;
+    // true when the merged pile was formed by "combine" rather than mutate
+    private boolean combined = false;
 
     private long gameTimestamp = -1; // permanents on the battlefield
     private long layerTimestamp = -1; // order for Static Abilities
@@ -1476,6 +1478,33 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         return getMergedToCard() != null;
     }
 
+    /**
+     * Combine: a merged permanent whose characteristics come from all of its
+     * component cards (total P/T, all names, mana costs, types and text boxes).
+     */
+    public final boolean isCombined() {
+        return combined && hasMergedCard();
+    }
+    public final void setCombined(final boolean b) {
+        combined = b;
+    }
+    /** Names of each card making up a combined permanent, or just this card's name. */
+    public final List<String> getCombinedNames() {
+        List<String> names = Lists.newArrayList();
+        if (isCombined()) {
+            for (final Card c : mergedCards) {
+                String n = c.getState(CardStateName.Original).getName();
+                if (n != null && !n.isEmpty() && !names.contains(n)) {
+                    names.add(n);
+                }
+            }
+        }
+        if (names.isEmpty()) {
+            names.add(getName());
+        }
+        return names;
+    }
+
     public final boolean isMutated() {
         return mutatedTimestamp != -1;
     }
@@ -1551,6 +1580,8 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
 
                 newTop.mutatedTimestamp = mutatedTimestamp;
                 newTop.timesMutated = timesMutated;
+                newTop.combined = combined;
+                combined = false;
                 mutatedTimestamp = -1;
                 timesMutated = 0;
 
@@ -5964,6 +5995,14 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
                 return true;
             }
         }
+        if (c1.isCombined()) {
+            for (final String n : c1.getCombinedNames()) {
+                if (sharesNameWith(n)) {
+                    return true;
+                }
+            }
+            return false;
+        }
         return sharesNameWith(c1.getName());
     }
 
@@ -5974,6 +6013,11 @@ public class Card extends GameEntity implements Comparable<Card>, IHasSVars, ITr
         }
 
         boolean shares = getName().equals(name);
+
+        // a combined permanent has the names of all its component cards
+        if (!shares && isCombined() && !hasNameOverwrite()) {
+            shares = getCombinedNames().contains(name);
+        }
 
         // Split cards has extra logic to check if it does share a name with
         if (!shares && !hasNameOverwrite()) {
