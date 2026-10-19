@@ -1,0 +1,7 @@
+Name:Ancestral Aurora
+ManaCost:U/S
+Types:Instant
+A:SP$ Draw | NumCards$ 2 | ConditionCheckSVar$ X | ConditionSVarCompare$ EQ0 | SubAbility$ DBDrawFour | SpellDescription$ Draw two cards. Snowfall — If a snow permanent entered the battlefield this turn, draw four cards instead.
+SVar:DBDrawFour:DB$ Draw | NumCards$ 4 | ConditionCheckSVar$ X | ConditionSVarCompare$ GE1
+SVar:X:Count$ThisTurnEntered_Battlefield_Permanent.Snow
+Oracle:Draw two cards.\nSnowfall — If a snow permanent entered the battlefield this turn, draw four cards instead.

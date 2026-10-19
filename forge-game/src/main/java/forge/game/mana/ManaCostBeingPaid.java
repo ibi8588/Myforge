@@ -446,7 +446,10 @@ public class ManaCostBeingPaid {
      */
     public final boolean ai_payMana(final String mana, final ManaPool pool) {
         final byte colorMask = ManaAtom.fromName(mana);
-        if (!this.isAnyPartPayableWith(colorMask, pool)) {
+        // the AI pays snow shards with the pseudo-mana "S" when the source is snow
+        final boolean snow = "S".equals(mana);
+        final boolean snowPayable = snow && unpaidShards.keySet().stream().anyMatch(ManaCostShard::isSnow);
+        if (!snowPayable && !this.isAnyPartPayableWith(colorMask, pool)) {
             //System.out.println("ManaCost : addMana() error, mana not needed - " + mana);
             return false;
             //throw new RuntimeException("ManaCost : addMana() error, mana not needed - " + mana);
@@ -457,10 +460,13 @@ public class ManaCostBeingPaid {
             if (ms == ManaCostShard.COLORED_X && !canColoredXShardBePaidByColor(MagicColor.toShortString(colorMask), xManaCostPaidByColor)) {
                 return false;
             }
+            if (snow && ms.isSnow()) {
+                return true;
+            }
             return pool.canPayForShardWithColor(ms, colorMask);
         };
 
-        return tryPayMana(colorMask, IterableUtil.filter(unpaidShards.keySet(), predCanBePaid), pool.getPossibleColorUses(colorMask)) != null;
+        return tryPayMana(colorMask, IterableUtil.filter(unpaidShards.keySet(), predCanBePaid), pool.getPossibleColorUses(colorMask), snow) != null;
     }
 
     /**
@@ -481,20 +487,25 @@ public class ManaCostBeingPaid {
 
         byte inColor = mana.getColor();
         byte outColor = pool.getPossibleColorUses(inColor);
-        return tryPayMana(inColor, IterableUtil.filter(unpaidShards.keySet(), predCanBePaid), outColor) != null;
+        return tryPayMana(inColor, IterableUtil.filter(unpaidShards.keySet(), predCanBePaid), outColor, mana.isSnow()) != null;
     }
     
     public final ManaCostShard payManaViaConvoke(final byte color) {
-        Predicate<ManaCostShard> predCanBePaid = ms -> !ms.isSnow() && !ms.isColorless() && ms.canBePaidWithManaOfColor(color);
-        return tryPayMana(color, IterableUtil.filter(unpaidShards.keySet(), predCanBePaid), (byte)0xFF);
+        // convoke can pay the colored or generic half of a snow hybrid shard, never the snow half
+        Predicate<ManaCostShard> predCanBePaid = ms -> (!ms.isSnow() || ms.isSnowHybrid()) && !ms.isColorless() && ms.canBePaidWithManaOfColor(color);
+        return tryPayMana(color, IterableUtil.filter(unpaidShards.keySet(), predCanBePaid), (byte)0xFF, false);
     }
 
     public ManaCostShard getShardToPayByPriority(Iterable<ManaCostShard> payableShards, byte possibleUses) {
+        return getShardToPayByPriority(payableShards, possibleUses, false);
+    }
+
+    public ManaCostShard getShardToPayByPriority(Iterable<ManaCostShard> payableShards, byte possibleUses, boolean snow) {
         List<ManaCostShard> choice = Lists.newArrayList();
         int priority = Integer.MIN_VALUE;
         for (ManaCostShard toPay : payableShards) {
             // if m is a better to pay than choice
-            int toPayPriority = getPayPriority(toPay, possibleUses);
+            int toPayPriority = getPayPriority(toPay, possibleUses, snow);
             if (toPayPriority > priority) {
                 priority = toPayPriority;
                 choice.clear();
@@ -510,8 +521,8 @@ public class ManaCostBeingPaid {
         return Iterables.getFirst(choice, null);
     }
 
-    private ManaCostShard tryPayMana(final byte colorMask, Iterable<ManaCostShard> payableShards, byte possibleUses) {
-        ManaCostShard chosenShard = getShardToPayByPriority(payableShards, possibleUses);
+    private ManaCostShard tryPayMana(final byte colorMask, Iterable<ManaCostShard> payableShards, byte possibleUses, boolean snow) {
+        ManaCostShard chosenShard = getShardToPayByPriority(payableShards, possibleUses, snow);
         if (chosenShard == null) {
             return null;
         }
@@ -527,7 +538,9 @@ public class ManaCostBeingPaid {
         }
 
         decreaseShard(chosenShard, 1);
-        if (chosenShard.isOr2Generic() && ( 0 == (chosenShard.getColorMask() & possibleUses) )) {
+        // {2/S} paid with snow mana is fully paid; otherwise the other generic mana is still owed
+        final boolean paidBySnowHalf = snow && chosenShard.isSnowHybrid();
+        if (chosenShard.isOr2Generic() && !paidBySnowHalf && ( 0 == (chosenShard.getColorMask() & possibleUses) )) {
             this.increaseGenericMana(1);
         }
 
@@ -535,9 +548,23 @@ public class ManaCostBeingPaid {
         return chosenShard;
     }
 
-    private static int getPayPriority(final ManaCostShard bill, final byte paymentColor) {
+    private static int getPayPriority(final ManaCostShard bill, final byte paymentColor, final boolean snow) {
         if (bill == ManaCostShard.GENERIC) {
             return 2;
+        }
+
+        if (bill.isSnowHybrid()) {
+            final boolean colorMatches = (bill.getColorMask() & paymentColor) != 0
+                    || (bill.isColorless() && (paymentColor & ManaAtom.COLORLESS) != 0);
+            if (colorMatches) {
+                return 9;
+            }
+            if (bill.isOr2Generic()) {
+                // with snow mana it's paid in full; otherwise only half of it is, so pay generic first
+                return snow ? 4 : 1;
+            }
+            // paying through the snow half: leave snow mana for plain {S} first
+            return 4;
         }
 
         if (bill.isMonoColor()) {
@@ -561,11 +588,16 @@ public class ManaCostBeingPaid {
     }
 
     private static boolean canBePaidWith(final ManaCostShard shard, final Mana mana, final ManaPool pool, Map<String, Integer> xManaCostPaidByColor) {
-        if (shard.isSnow() && !mana.isSnow()) {
+        if (shard.isSnow() && !shard.isSnowHybrid() && !mana.isSnow()) {
             return false;
         }
         if (mana.isRestricted() && !mana.getManaAbility().meetsManaShardRestrictions(shard, mana.getColor())) {
         	return false;
+        }
+
+        // snow hybrid: any mana from a snow source pays it
+        if (shard.isSnowHybrid() && mana.isSnow()) {
+            return true;
         }
 
         // snow can be paid for any color

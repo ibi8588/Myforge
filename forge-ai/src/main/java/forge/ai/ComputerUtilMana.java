@@ -1102,7 +1102,7 @@ public class ComputerUtilMana {
             return false;
         }
 
-        if (toPay.isSnow() && !sourceCard.isSnow()) {
+        if (toPay.isSnow() && !toPay.isSnowHybrid() && !sourceCard.isSnow()) {
             return false;
         }
 
@@ -1333,6 +1333,24 @@ public class ComputerUtilMana {
             }
             if (shard == ManaCostShard.S) {
                 res.putAll(shard, manaAbilityMap.get(ManaAtom.IS_SNOW));
+                continue;
+            }
+
+            if (shard.isSnowHybrid()) {
+                // snow sources, plus sources of the other half
+                if (manaAbilityMap.containsKey(ManaAtom.IS_SNOW)) {
+                    res.putAll(shard, manaAbilityMap.get(ManaAtom.IS_SNOW));
+                }
+                Integer colorKey = (int) shard.getColorMask();
+                if (colorKey != 0 && manaAbilityMap.containsKey(colorKey)) {
+                    res.putAll(shard, manaAbilityMap.get(colorKey));
+                }
+                if (shard.isColorless() && manaAbilityMap.containsKey(ManaAtom.COLORLESS)) {
+                    res.putAll(shard, manaAbilityMap.get(ManaAtom.COLORLESS));
+                }
+                if (shard.isOr2Generic() && manaAbilityMap.containsKey(ManaAtom.GENERIC)) {
+                    res.putAll(shard, manaAbilityMap.get(ManaAtom.GENERIC));
+                }
                 continue;
             }
 
@@ -1917,7 +1935,7 @@ public class ComputerUtilMana {
         if (creatures && !artifacts) {
             // Run for convoke but not improvise or waterbending
             for (ManaCostShard toPay : cost) {
-                if (toPay.isSnow() || toPay.isColorless()) {
+                if ((toPay.isSnow() && !toPay.isSnowHybrid()) || toPay.isColorless()) {
                     continue;
                 }
                 for (Card c : list) {

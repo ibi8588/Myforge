@@ -696,6 +696,14 @@ public enum FSkinProp {
             .put(ManaCostShard.WUP, IMG_MANA_PHRYX_WU)
 
             .put(ManaCostShard.S, IMG_MANA_SNOW)
+            // TODO: dedicated snow-hybrid icons; the snow icon stands in for now
+            .put(ManaCostShard.WS, IMG_MANA_SNOW)
+            .put(ManaCostShard.US, IMG_MANA_SNOW)
+            .put(ManaCostShard.BS, IMG_MANA_SNOW)
+            .put(ManaCostShard.RS, IMG_MANA_SNOW)
+            .put(ManaCostShard.GS, IMG_MANA_SNOW)
+            .put(ManaCostShard.CS, IMG_MANA_SNOW)
+            .put(ManaCostShard.S2, IMG_MANA_SNOW)
             .put(ManaCostShard.X, IMG_MANA_X)
 
             .build();

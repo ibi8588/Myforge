@@ -288,11 +288,12 @@ public class CostPayment extends ManaConversionMatrix {
                 continue;
             }
 
-            if (!manapool.canPayForShardWithColor(shard, thisMana.getColor())) {
+            final boolean viaSnowHalf = shard.isSnowHybrid() && thisMana.isSnow();
+            if (!viaSnowHalf && !manapool.canPayForShardWithColor(shard, thisMana.getColor())) {
                 continue;
             }
 
-            if (shard.isSnow() && !thisMana.isSnow()) {
+            if (shard.isSnow() && !shard.isSnowHybrid() && !thisMana.isSnow()) {
                 continue;
             }
 

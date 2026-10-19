@@ -60,6 +60,16 @@ public enum ManaCostShard {
     CR(ManaAtom.RED | ManaAtom.COLORLESS, "C/R"),
     CG(ManaAtom.GREEN | ManaAtom.COLORLESS, "C/G"),
 
+    /* Snow hybrid: pay with the listed mana, or with one mana from a snow source */
+    WS(ManaAtom.WHITE | ManaAtom.IS_SNOW, "W/S"),
+    US(ManaAtom.BLUE | ManaAtom.IS_SNOW, "U/S"),
+    BS(ManaAtom.BLACK | ManaAtom.IS_SNOW, "B/S"),
+    RS(ManaAtom.RED | ManaAtom.IS_SNOW, "R/S"),
+    GS(ManaAtom.GREEN | ManaAtom.IS_SNOW, "G/S"),
+    CS(ManaAtom.COLORLESS | ManaAtom.IS_SNOW, "C/S"),
+    // two generic mana, or one snow mana
+    S2(ManaAtom.OR_2_GENERIC | ManaAtom.IS_SNOW, "2/S"),
+
     // Snow and colorless
     S(ManaAtom.IS_SNOW, "S"),
     GENERIC(ManaAtom.GENERIC, "1"),
@@ -307,8 +317,17 @@ public enum ManaCostShard {
     }
 
     // CR 107.4 hybrid, incl. {2/W}, {C/W} and hybrid Phyrexian; used by Providence of Night
+    // also custom snow hybrid {U/S}, {C/S}, {2/S}
     public boolean isHybrid() {
-        return isMultiColor() || (isMonoColor() && (isOr2Generic() || isColorless()));
+        return isMultiColor() || (isMonoColor() && (isOr2Generic() || isColorless())) || isSnowHybrid();
+    }
+
+    /**
+     * Snow hybrid ({W/S}, {U/S}, {B/S}, {R/S}, {G/S}, {C/S}, {2/S}): can be paid with the
+     * other half as normal, or with one mana produced by a snow source.
+     */
+    public boolean isSnowHybrid() {
+        return isSnow() && isOfKind(COLORS_SUPERPOSITION | ManaAtom.COLORLESS | ManaAtom.OR_2_GENERIC);
     }
 
     public boolean isColorless() {
@@ -316,7 +335,7 @@ public enum ManaCostShard {
     }
 
     public boolean isGeneric() {
-    	return isOfKind(ManaAtom.GENERIC) || isOfKind(ManaAtom.IS_X) || this.isSnow() || this.isOr2Generic();
+    	return isOfKind(ManaAtom.GENERIC) || isOfKind(ManaAtom.IS_X) || (this.isSnow() && !this.isSnowHybrid()) || this.isOr2Generic();
     }
     public boolean isOr2Generic() {
         return isOfKind(ManaAtom.OR_2_GENERIC);
