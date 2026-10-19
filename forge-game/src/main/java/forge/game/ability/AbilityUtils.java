@@ -1936,7 +1936,7 @@ public class AbilityUtils {
                         }
                     }
                 }
-                colorOccurrences += player.getDevotionMod();
+                colorOccurrences += player.getDevotionMod(colorCode);
                 return doXMath(colorOccurrences, expr, c, ctb);
             }
         } // end ctb != null

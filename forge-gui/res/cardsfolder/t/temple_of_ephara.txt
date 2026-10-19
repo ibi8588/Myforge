@@ -1,0 +1,5 @@
+Name:Temple of Ephara
+ManaCost:no cost
+Types:Enchantment Land
+S:Mode$ Devotion | ValidPlayer$ You | Color$ White,Blue | Description$ Your devotion to white and blue is increased by one.
+Oracle:Your devotion to white and blue is increased by one.

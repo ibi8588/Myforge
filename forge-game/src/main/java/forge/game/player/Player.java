@@ -120,6 +120,7 @@ public class Player extends GameEntity implements Comparable<Player> {
     private int descended;
     private int numRingTemptedYou;
     private int devotionMod;
+    private int[][] devotionMods = new int[0][];
     private Card ringBearer, theRing;
     private int speed;
 
@@ -4102,13 +4103,28 @@ public class Player extends GameEntity implements Comparable<Player> {
     public int getDevotionMod() {
         return devotionMod;
     }
+    /** Devotion increase that applies when counting devotion to the given color(s). */
+    public int getDevotionMod(final byte colorCode) {
+        int i = 0;
+        for (final int[] mod : devotionMods) {
+            if ((mod[0] & colorCode) != 0) {
+                i += mod[1];
+            }
+        }
+        return i;
+    }
 
     public void afterStaticAbilityLayer(StaticAbilityLayer layer) {
         if (layer != StaticAbilityLayer.TEXT) {
             return;
         }
 
-        devotionMod = StaticAbilityDevotion.getDevotionMod(this);
+        devotionMods = StaticAbilityDevotion.getDevotionMods(this);
+        int total = 0;
+        for (final int[] mod : devotionMods) {
+            total += mod[1];
+        }
+        devotionMod = total;
     }
 
     public void triggerElementalBend(TriggerType type) {
