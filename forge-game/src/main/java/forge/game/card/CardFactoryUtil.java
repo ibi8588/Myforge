@@ -993,6 +993,21 @@ public class CardFactoryUtil {
             trigger.setOverridingAbility(AbilityFactory.getAbility(effect, card));
 
             inst.addTrigger(trigger);
+        } else if (keyword.equals("Wield")) {
+            // Weapons: each combat, untap, gain haste and become an artifact creature until end of turn
+            final String trig = "Mode$ Phase | Phase$ BeginCombat | TriggerZones$ Battlefield | Secondary$ True"
+                    + " | TriggerDescription$ Wield (" + inst.getReminderText() + ")";
+            final String untap = "DB$ Untap | Defined$ Self";
+            final String animate = "DB$ Animate | Defined$ Self | Types$ Artifact,Creature | Keywords$ Haste";
+
+            final SpellAbility sa = AbilityFactory.getAbility(untap, card);
+            final AbilitySub animateSub = (AbilitySub) AbilityFactory.getAbility(animate, card);
+            sa.setSubAbility(animateSub);
+            sa.setIntrinsic(intrinsic);
+
+            final Trigger trigger = TriggerHandler.parseTrigger(trig, card, intrinsic);
+            trigger.setOverridingAbility(sa);
+            inst.addTrigger(trigger);
         } else if (keyword.equals("Exalted")) {
             final String trig = "Mode$ Attacks | ValidCard$ Creature.YouCtrl | Alone$ True | "
                     + "TriggerZones$ Battlefield | Secondary$ True | TriggerDescription$ "
