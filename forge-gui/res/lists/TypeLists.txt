@@ -405,6 +405,7 @@ Spacecraft:Spacecraft
 Stone:Stones
 Treasure:Treasures
 Vehicle:Vehicles
+Weapon:Weapons
 Vibranium
 [WalkerTypes]
 Ajani

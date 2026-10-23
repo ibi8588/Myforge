@@ -1,0 +1,13 @@
+Name:Urza's Power Armor
+ManaCost:4 W W W U U U
+Types:Legendary Artifact Enchantment Aura Weapon
+PT:10/10
+K:Enchant:Player
+K:Wield
+A:AB$ TapOrUntap | Cost$ Discard<1/Card> | ValidTgts$ Artifact,Creature,Land | TgtPrompt$ Select target artifact, creature, or land | SpellDescription$ You may tap or untap target artifact, creature, or land.
+A:AB$ Mana | Cost$ tapXType<1/Artifact/untapped artifact you control> | Produced$ U | SpellDescription$ Add {U}.
+R:Event$ DamageDone | ActiveZones$ Battlefield | ValidTarget$ You,Permanent.YouCtrl | ReplaceWith$ DBReplace | PreventionEffect$ True | Description$ If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up.
+SVar:DBReplace:DB$ ReplaceDamage | Amount$ ShieldAmount
+SVar:ShieldAmount:ReplaceCount$DamageAmount/HalfUp
+AI:RemoveDeck:All
+Oracle:Enchant player\nWield (At the beginning of each combat step, untap this permanent. It gains haste. It becomes an artifact creature until end of turn.)\nDiscard a card: You may tap or untap target artifact, creature, or land.\nTap an untapped artifact you control: Add {U}.\nIf a source would deal damage to you or a permanent you control, prevent half that damage, rounded up.
